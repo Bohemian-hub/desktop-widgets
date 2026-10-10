@@ -11,6 +11,9 @@ npm-debug.log*
 # 本地运行状态
 widget-state.json
 
+# 打包输出
+dist/
+
 # 宠物组件素材：由使用者自行放入（含真人照片生成的姿态图与原始照片）
 widgets/pet/assets/*.png
 widgets/pet/assets/raw/

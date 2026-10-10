@@ -22,5 +22,11 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   setDesktopMode: (on) => ipcRenderer.send('mode:set', !!on),
   // 交互锁定：锁定后组件不响应鼠标/键盘（点击穿透到桌面）
   getLockInteraction: () => ipcRenderer.invoke('lock:get'),
-  setLockInteraction: (on) => ipcRenderer.send('lock:set', !!on)
+  setLockInteraction: (on) => ipcRenderer.send('lock:set', !!on),
+  // 开机启动（macOS 登录项）
+  getLoginItem: () => ipcRenderer.invoke('login:get'),
+  setLoginItem: (on) => ipcRenderer.send('login:set', !!on),
+  // 启动时自动打开控制台
+  getOpenConsoleOnStart: () => ipcRenderer.invoke('console:getStart'),
+  setOpenConsoleOnStart: (v) => ipcRenderer.send('console:setStart', !!v)
 });

@@ -141,6 +141,25 @@ function getLockInteraction() {
   return loadState()._lockInteraction === true;
 }
 
+/* ================= 开机启动 & 启动时打开控制台 ================= */
+function getLoginItem() {
+  try { return app.getLoginItemSettings().openAtLogin === true; } catch { return false; }
+}
+function setLoginItem(on) {
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!on, openAsHidden: false });
+    return true;
+  } catch (e) { console.warn('设置开机启动失败:', e.message); return false; }
+}
+function getOpenConsoleOnStart() {
+  return loadState()._openConsoleOnStart === true;
+}
+function setOpenConsoleOnStart(v) {
+  const state = loadState();
+  state._openConsoleOnStart = !!v;
+  saveState(state);
+}
+
 function applyModeToWindow(win) {
   if (win.isDestroyed()) return;
   if (getDesktopMode()) {
@@ -317,9 +336,17 @@ function createWidgetWindow(def, index) {
   });
 
   win.once('ready-to-show', () => {
-    win.show();
+    // 恢复上次的显示/隐藏状态（_hiddenWidgets 持久化）
+    const state = loadState();
+    const hidden = state._hiddenWidgets && state._hiddenWidgets[def.id];
+    if (!hidden) win.show();
     applyModeToWindow(win);        // 应用当前模式（壁纸模式时窗口置于桌面图标之下）
     applyInteractionState(def, win); // 按 壁纸模式×交互锁定 组合创建/移除代理窗口
+    if (hidden) {
+      // 组件隐藏时，代理窗口也隐藏，避免残留透明层
+      const proxy = proxyWindows.get(def.id);
+      if (proxy && !proxy.isDestroyed()) proxy.hide();
+    }
     // 窗口真正显示后再通知 Dock/控制台刷新（避免启动时序读到未显示状态）
     broadcastWidgetsChanged();
   });
@@ -351,7 +378,7 @@ function createControlWindow() {
     return;
   }
   controlWin = new BrowserWindow({
-    width: 340,
+    width: 560,
     height: 460,
     title: '桌面组件控制台',
     resizable: false,
@@ -459,8 +486,18 @@ ipcMain.handle('widgets:list', () =>
 ipcMain.handle('widget:toggle', (e, id) => {
   const win = widgetWindows.get(id);
   if (win && !win.isDestroyed()) {
-    if (win.isVisible()) win.hide();
-    else win.show();
+    // 持久化显示/隐藏状态（_hiddenWidgets），重启后保持
+    const state = loadState();
+    const hidden = state._hiddenWidgets || {};
+    if (win.isVisible()) {
+      win.hide();
+      hidden[id] = true;
+    } else {
+      win.show();
+      delete hidden[id];
+    }
+    state._hiddenWidgets = hidden;
+    saveState(state);
     // 代理窗口跟随组件显示状态
     const proxy = proxyWindows.get(id);
     if (proxy && !proxy.isDestroyed()) {
@@ -499,6 +536,13 @@ ipcMain.on('mode:set', (e, on) => setDesktopMode(!!on));
 /* 交互锁定：读（invoke）/ 写（send） */
 ipcMain.handle('lock:get', () => getLockInteraction());
 ipcMain.on('lock:set', (e, on) => setLockInteraction(!!on));
+
+/* 开机启动（macOS 登录项） */
+ipcMain.handle('login:get', () => getLoginItem());
+ipcMain.on('login:set', (e, on) => setLoginItem(!!on));
+/* 启动时自动打开控制台 */
+ipcMain.handle('console:getStart', () => getOpenConsoleOnStart());
+ipcMain.on('console:setStart', (e, v) => setOpenConsoleOnStart(!!v));
 
 /* 交互代理事件：代理窗口的鼠标 → 注入给真正的组件窗口。
  * 拖动判定：按下后不立即决定，位移超过阈值才进入拖动（标题栏里的按钮
@@ -645,6 +689,8 @@ app.whenReady().then(() => {
   createTray();
   buildAllWidgets();
   createDockWindow();
+  // 启动时按设置决定是否自动打开控制台
+  if (getOpenConsoleOnStart()) createControlWindow();
   // 屏幕分辨率/工作区变化时，Dock 自动重新贴右下角
   screen.on('display-metrics-changed', repositionDock);
 });
