@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Proxy</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: transparent;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+<script>
+    // 交互代理窗口：完全透明不可见，负责在「壁纸模式」下接收鼠标/键盘事件，
+    // 经 IPC 转发给主进程，再由主进程 sendInputEvent 注入到真正的组件窗口。
+    const send = window.proxyApi.send;
+
+    document.addEventListener('mousedown', (e) => {
+        send({ t: 'down', x: e.clientX, y: e.clientY, button: e.button,
+               ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey, meta: e.metaKey });
+    }, true);
+
+    document.addEventListener('mousemove', (e) => {
+        send({ t: 'move', x: e.clientX, y: e.clientY });
+    }, true);
+
+    document.addEventListener('mouseup', (e) => {
+        send({ t: 'up', x: e.clientX, y: e.clientY, button: e.button });
+    }, true);
+
+    document.addEventListener('wheel', (e) => {
+        send({ t: 'wheel', x: e.clientX, y: e.clientY,
+               deltaX: e.deltaX, deltaY: e.deltaY, ctrl: e.ctrlKey });
+        e.preventDefault();
+    }, { passive: false });
+    // 键盘事件不再由代理转发：点击后主进程把焦点交给组件窗口，
+    // 中文输入法 / Cmd+V 粘贴由系统直接送达组件。
+</script>
+</body>
+</html>

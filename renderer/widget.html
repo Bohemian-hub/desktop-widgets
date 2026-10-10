@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Widget</title>
+    <style>
+        /* ===== 组件通用样式（与原来 index.html 一致）===== */
+        :root {
+            --ink: #334155;
+            --muted: #94a3b8;
+            --line: #e2e8f0;
+            --blue: #4f8df7;
+            --blue-soft: #eaf2ff;
+            --pink: #fff0f5;
+            --yellow: #fff8dc;
+            --green: #eaf9f0;
+            --purple: #f1edff;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+        }
+
+        .widget {
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow: hidden;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 22px;
+            /* 全局透明度：主进程设置后注入，组件背景统一引用这个变量 */
+            --widget-alpha: 0.5;
+            /* MVP 妥协：Electron 透明窗口不支持对桌面内容 backdrop-filter，
+               用背景透明度透出壁纸（控制台可调节） */
+            background: rgba(255, 255, 255, var(--widget-alpha));
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .06);
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 45px;
+            margin-bottom: 12px;
+            cursor: grab;
+            user-select: none;
+            /* 拖拽把手：拖动标题栏 = 移动整个 OS 窗口 */
+            -webkit-app-region: drag;
+        }
+
+        /* 标题栏里的可交互元素不参与拖拽 */
+        .widget-header button,
+        .widget-header a,
+        .widget-header input,
+        .widget-header select,
+        .widget-header textarea {
+            -webkit-app-region: no-drag;
+        }
+
+        .heading {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .sparkle {
+            display: grid;
+            width: 31px;
+            height: 31px;
+            place-items: center;
+            border-radius: 11px;
+            background: var(--blue-soft);
+            color: var(--blue);
+            /* 图标可点击隐藏组件，不参与标题栏拖拽 */
+            -webkit-app-region: no-drag;
+            cursor: pointer;
+            transition: transform .15s ease, filter .15s ease;
+        }
+
+        .sparkle:hover {
+            transform: scale(1.08);
+            filter: brightness(.96);
+        }
+
+        .week-switcher {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 3px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #f8fafc;
+        }
+
+        .week-switcher button {
+            display: grid;
+            width: 28px;
+            height: 24px;
+            padding: 0;
+            place-items: center;
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: #7c9bd1;
+            cursor: pointer;
+            font-size: 21px;
+            line-height: 1;
+        }
+
+        .week-switcher button:hover {
+            background: var(--blue-soft);
+            color: var(--blue);
+        }
+    </style>
+</head>
+<body>
+    <script src="./widget-render.js"></script>
+</body>
+</html>

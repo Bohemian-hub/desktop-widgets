@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>组件 Dock</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+        }
+
+        #dock {
+            display: flex;
+            flex-direction: column;      /* 竖排 */
+            align-items: center;
+            gap: 10px;
+            height: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.78);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .08), inset 0 1px 0 rgba(255, 255, 255, .6);
+        }
+
+        .dock-item {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            place-items: center;
+            border: 0;
+            border-radius: 12px;
+            background: transparent;
+            cursor: pointer;
+            transition: transform .15s ease, background .15s ease;
+        }
+
+        .dock-item:hover {
+            transform: translateY(-2px) scale(1.08);
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .dock-item:active {
+            transform: scale(0.92);
+        }
+
+        .dock-item svg {
+            width: 18px;
+            height: 18px;
+            /* 隐藏的组件：灰色 */
+            color: #cbd5e1;
+            transition: color .2s;
+        }
+
+        .dock-item.is-active svg {
+            /* 显示的组件：蓝色 */
+            color: #4f8df7;
+        }
+    </style>
+</head>
+<body>
+    <div id="dock"></div>
+
+    <script>
+        // 注意：不要用 `const { desktopAPI } = window` 解构，
+        // contextBridge 会在全局作用域创建同名绑定导致冲突
+        const api = window.desktopAPI;
+        const dockEl = document.getElementById('dock');
+
+        async function refresh() {
+            let widgets;
+            try {
+                widgets = await api.listWidgets();
+            } catch (e) {
+                dockEl.innerHTML = 'ERR: ' + e.message;
+                return;
+            }
+            dockEl.innerHTML = widgets.map(w => `
+                <button class="dock-item ${w.visible ? 'is-active' : ''}"
+                        data-id="${w.id}" title="${w.name}">
+                    ${w.icon || ''}
+                </button>
+            `).join('');
+
+            dockEl.querySelectorAll('.dock-item').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await api.toggleWidget(btn.dataset.id);
+                    refresh();
+                });
+            });
+        }
+
+        // 其他入口（控制台）改动状态时同步刷新
+        if (api.onWidgetsChanged) api.onWidgetsChanged(refresh);
+
+        refresh();
+        // 启动时组件窗口可能还在加载（未显示），延迟再刷一次保证图标状态正确
+        setTimeout(refresh, 1500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "desktop-widgets-electron",
+  "productName": "桌面组件",
+  "version": "0.1.0",
+  "description": "基于 Electron 的 macOS 桌面组件系统：每个组件一个独立透明窗口，组件区域可点击，桌面其余区域正常可用",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "gen-icon": "node scripts/gen-icon.js"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0"
+  }
+}

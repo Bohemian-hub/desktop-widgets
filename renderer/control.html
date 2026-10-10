@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>桌面组件控制台</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 18px;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+            background: #f6f8fb;
+            color: #334155;
+        }
+        h1 { font-size: 15px; margin: 0 0 14px; }
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+        .row .name { font-weight: 600; }
+        .row .file { color: #94a3b8; font-size: 11px; margin-left: 8px; }
+        button {
+            border: 0;
+            border-radius: 9px;
+            padding: 6px 14px;
+            font-size: 12px;
+            cursor: pointer;
+            background: #eaf2ff;
+            color: #4f8df7;
+        }
+        button:hover { background: #dbe8ff; }
+        .actions { margin-top: 14px; display: flex; gap: 8px; }
+        .actions .danger { background: #fee2e2; color: #dc2626; }
+        .hint { margin-top: 12px; font-size: 11px; color: #94a3b8; line-height: 1.6; }
+
+        /* 全局透明度滑块 */
+        .alpha-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+        .alpha-row label { font-weight: 600; white-space: nowrap; }
+        .alpha-row .val { color: #4f8df7; font-weight: 700; width: 38px; text-align: right; }
+        input[type="range"] {
+            flex: 1;
+            height: 4px;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 2px;
+            background: #dbe4f0;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #4f8df7;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(79, 141, 247, .5);
+            cursor: pointer;
+        }
+        /* 模式开关 */
+        .mode-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            font-size: 13px;
+        }
+        .mode-row .txt { flex: 1; }
+        .mode-row .txt b { font-weight: 600; }
+        .mode-row .txt span { display: block; color: #94a3b8; font-size: 11px; margin-top: 2px; }
+        .switch {
+            position: relative;
+            flex-shrink: 0;
+            width: 40px;
+            height: 22px;
+            border-radius: 11px;
+            background: #cbd5e1;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        .switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,.25);
+            transition: left .2s;
+        }
+        .switch.on { background: #4f8df7; }
+        .switch.on::after { left: 20px; }
+    </style>
+</head>
+<body>
+    <h1>桌面组件 · 控制台</h1>
+    <div class="alpha-row">
+        <label>全局透明度</label>
+        <input type="range" id="alpha" min="0.15" max="1" step="0.05" value="0.5">
+        <span class="val" id="alphaVal">50%</span>
+    </div>
+    <div class="mode-row">
+        <div class="txt">
+            <b>壁纸模式</b>
+            <span>组件置于桌面图标/文件夹之下，不遮挡桌面</span>
+        </div>
+        <div class="switch" id="modeSwitch" title="切换壁纸模式"></div>
+    </div>
+    <div class="mode-row">
+        <div class="txt">
+            <b>交互锁定</b>
+            <span>开启后组件不可点击/输入，点击穿透到桌面</span>
+        </div>
+        <div class="switch" id="lockSwitch" title="切换交互锁定"></div>
+    </div>
+    <div id="list"></div>
+    <div class="actions">
+        <button id="reload">重新加载组件</button>
+        <button id="quit" class="danger">退出</button>
+    </div>
+    <div class="hint">
+        拖拽组件顶部标题栏可移动窗口，位置自动保存。<br>
+        新增组件：把 widget 的 js 文件放进 widgets/ 目录，<br>
+        然后点「重新加载组件」即可，无需改任何代码。
+    </div>
+
+    <script>
+        const api = window.desktopAPI;
+        const listEl = document.getElementById('list');
+
+        async function refresh() {
+            const widgets = await api.listWidgets();
+            listEl.innerHTML = widgets.map(w => `
+                <div class="row">
+                    <span><span class="name">${w.name}</span><span class="file">${w.folder}/</span></span>
+                    <button data-id="${w.id}">${w.visible ? '隐藏' : '显示'}</button>
+                </div>
+            `).join('');
+
+            listEl.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await api.toggleWidget(btn.dataset.id);
+                    refresh();
+                });
+            });
+        }
+
+        document.getElementById('reload').addEventListener('click', async () => {
+            await api.reloadWidgets();
+            refresh();
+        });
+
+        document.getElementById('quit').addEventListener('click', () => api.quit());
+
+        // 全局透明度滑块：拖动实时广播到所有组件并持久化
+        const alphaSlider = document.getElementById('alpha');
+        const alphaVal = document.getElementById('alphaVal');
+        (async () => {
+            const a = await api.getAlpha();
+            alphaSlider.value = a;
+            alphaVal.textContent = Math.round(a * 100) + '%';
+        })();
+        alphaSlider.addEventListener('input', () => {
+            const v = parseFloat(alphaSlider.value);
+            alphaVal.textContent = Math.round(v * 100) + '%';
+            api.setAlpha(v);
+        });
+
+        // 壁纸模式开关（组件层级置底）
+        const modeSwitch = document.getElementById('modeSwitch');
+        (async () => {
+            const on = await api.getDesktopMode();
+            modeSwitch.classList.toggle('on', on);
+        })();
+        modeSwitch.addEventListener('click', () => {
+            const on = !modeSwitch.classList.contains('on');
+            modeSwitch.classList.toggle('on', on);
+            api.setDesktopMode(on);
+        });
+
+        // 交互锁定开关（组件不可交互，点击穿透到桌面）
+        const lockSwitch = document.getElementById('lockSwitch');
+        (async () => {
+            const on = await api.getLockInteraction();
+            lockSwitch.classList.toggle('on', on);
+        })();
+        lockSwitch.addEventListener('click', () => {
+            const on = !lockSwitch.classList.contains('on');
+            lockSwitch.classList.toggle('on', on);
+            api.setLockInteraction(on);
+        });
+
+        // Dock 里切换组件状态时，控制台同步刷新
+        if (api.onWidgetsChanged) api.onWidgetsChanged(refresh);
+
+        refresh();
+    </script>
+</body>
+</html>
